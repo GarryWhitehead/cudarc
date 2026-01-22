@@ -564,6 +564,27 @@ pub struct CudaSlice<T> {
     pub(crate) marker: PhantomData<*const T>,
 }
 
+impl<T> CudaSlice<T> {
+    pub fn new(ptr: sys::CUdeviceptr, len: usize, stream: Arc<CudaStream>) -> Self {
+        let (read, write) = if stream.ctx.is_event_tracking() {
+            (
+                Some(stream.ctx.new_event(None)?),
+                Some(stream.ctx.new_event(None)?),
+            )
+        } else {
+            (None, None)
+        };
+        Self {
+            cu_device_ptr: ptr,
+            len,
+            read,
+            write,
+            stream: stream.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+
 unsafe impl<T> Send for CudaSlice<T> {}
 unsafe impl<T> Sync for CudaSlice<T> {}
 

@@ -638,6 +638,8 @@ impl<T> CudaSlice<T> {
     pub fn stream(&self) -> &Arc<CudaStream> {
         &self.stream
     }
+
+    pub fn as_dev_ptr(&self) -> sys::CUdeviceptr { self.cu_device_ptr }
 }
 
 impl<T: DeviceRepr> CudaSlice<T> {

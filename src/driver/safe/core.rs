@@ -590,11 +590,19 @@ impl CudaSlice<u8> {
         if bytes.len % size_of::<O>() != 0 {
             panic!("Incorrect number of bytes for given type and length")
         }
+        let (read, write) = if bytes.stream.ctx.is_event_tracking() {
+            (
+                Some(bytes.stream.ctx.new_event(None).unwrap()),
+                Some(bytes.stream.ctx.new_event(None).unwrap()),
+            )
+        } else {
+            (None, None)
+        };
         CudaSlice {
             cu_device_ptr: bytes.cu_device_ptr,
             len: bytes.len,
-            read: bytes.read,
-            write: bytes.write,
+            read,
+            write,
             stream: bytes.stream.clone(),
             marker: PhantomData,
         }

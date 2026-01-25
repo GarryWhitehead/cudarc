@@ -585,6 +585,22 @@ impl<T> CudaSlice<T> {
     }
 }
 
+impl CudaSlice<u8> {
+    pub fn from_bytes<O>(bytes: &CudaSlice<u8>) -> CudaSlice<O> {
+        if bytes.len % size_of::<O>() != 0 {
+            panic!("Incorrect number of bytes for given type and length")
+        }
+        CudaSlice {
+            cu_device_ptr: bytes.cu_device_ptr,
+            len: bytes.len,
+            read: bytes.read,
+            write: bytes.write,
+            stream: bytes.stream.clone(),
+            marker: PhantomData,
+        }
+    }
+}
+
 unsafe impl<T> Send for CudaSlice<T> {}
 unsafe impl<T> Sync for CudaSlice<T> {}
 

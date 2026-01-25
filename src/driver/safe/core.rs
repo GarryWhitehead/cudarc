@@ -565,7 +565,7 @@ pub struct CudaSlice<T> {
 }
 
 impl<T> CudaSlice<T> {
-    pub fn new(ptr: sys::CUdeviceptr, len: usize, stream: Arc<CudaStream>) -> Self {
+    pub fn try_new(ptr: sys::CUdeviceptr, len: usize, stream: Arc<CudaStream>) -> Result<Self, DriverError> {
         let (read, write) = if stream.ctx.is_event_tracking() {
             (
                 Some(stream.ctx.new_event(None)?),
@@ -574,14 +574,14 @@ impl<T> CudaSlice<T> {
         } else {
             (None, None)
         };
-        Self {
+        Ok(Self {
             cu_device_ptr: ptr,
             len,
             read,
             write,
             stream: stream.clone(),
             marker: PhantomData,
-        }
+        })
     }
 }
 

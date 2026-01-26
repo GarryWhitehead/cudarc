@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
     vec::Vec,
 };
+use crate::driver::sys::CUdeviceptr;
 
 /// Represents a primary cuda context on a certain device. When created with [CudaContext::new()] it will
 /// push a new primary context onto the stack.
@@ -1379,6 +1380,21 @@ impl CudaStream {
         unsafe { result::memcpy_htod_async(dst, src, self.cu_stream) }
     }
 
+    pub fn memcpy_htod_unchecked<T>(
+        self: &Arc<Self>,
+        src: *const T,
+        src_len: usize,
+        dst: CUdeviceptr,
+    ) -> Result<(), DriverError> {
+        self.ctx.bind_to_thread()?;
+        unsafe { sys::cuMemcpyHtoDAsync_v2(
+            dst,
+            src,
+            src_len * std::mem::size_of::<T>(),
+            self.cu_stream,
+        ).result() }
+    }
+
     /// Copy a [`CudaSlice`]/[`CudaView`] to a new [`Vec<T>`].
     #[deprecated = "Use clone_dtoh"]
     pub fn memcpy_dtov<T: DeviceRepr, Src: DevicePtr<T>>(
@@ -1437,6 +1453,36 @@ impl CudaStream {
 
         let (src, _record_src) = src.device_ptr(self);
         let (dst, _record_dst) = dst.device_ptr_mut(self);
+
+        if src_ctx == dst_ctx {
+            unsafe { result::memcpy_dtod_async(dst, src, num_bytes, self.cu_stream) }
+        } else {
+            unsafe {
+                result::memcpy_peer_async(
+                    dst_ctx.cu_ctx,
+                    dst,
+                    src_ctx.cu_ctx,
+                    src,
+                    num_bytes,
+                    self.cu_stream,
+                )
+            }
+        }
+    }
+
+    pub fn memcpy_dtod_unchecked<T>(
+        self: &Arc<Self>,
+        src: CUdeviceptr,
+        src_len: usize,
+        dst: CUdeviceptr,
+        stream: Arc<CudaStream>
+    ) -> Result<(), DriverError> {
+        self.ctx.bind_to_thread()?;
+
+        let num_bytes = src_len * size_of::<T>();
+
+        let src_ctx = stream.context();
+        let dst_ctx = self.context();
 
         if src_ctx == dst_ctx {
             unsafe { result::memcpy_dtod_async(dst, src, num_bytes, self.cu_stream) }

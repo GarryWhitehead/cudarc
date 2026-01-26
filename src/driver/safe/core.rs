@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
     vec::Vec,
 };
+use std::ffi::c_void;
 use crate::driver::sys::CUdeviceptr;
 
 /// Represents a primary cuda context on a certain device. When created with [CudaContext::new()] it will
@@ -1389,7 +1390,7 @@ impl CudaStream {
         self.ctx.bind_to_thread()?;
         unsafe { sys::cuMemcpyHtoDAsync_v2(
             dst,
-            src,
+            src as *const c_void,
             src_len * std::mem::size_of::<T>(),
             self.cu_stream,
         ).result() }
@@ -1475,7 +1476,7 @@ impl CudaStream {
         src: CUdeviceptr,
         src_len: usize,
         dst: CUdeviceptr,
-        stream: Arc<CudaStream>
+        stream: &Arc<CudaStream>
     ) -> Result<(), DriverError> {
         self.ctx.bind_to_thread()?;
 

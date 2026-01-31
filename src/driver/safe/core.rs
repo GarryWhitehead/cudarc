@@ -1438,6 +1438,22 @@ impl CudaStream {
         unsafe { result::memcpy_dtoh_async(dst, src, self.cu_stream) }
     }
 
+    pub fn memcpy_dtoh_unchecked<T: DeviceRepr, Dst: HostSlice<T> + ?Sized>(
+        self: &Arc<Self>,
+        src: &CudaSlice<u8>,
+        dst: &mut Dst,
+    ) -> Result<(), DriverError> {
+        self.ctx.bind_to_thread()?;
+        let (src, _record_src) = src.device_ptr(self);
+        let (dst, _record_dst) = unsafe { dst.stream_synced_mut_slice(self) };
+        unsafe {sys::cuMemcpyDtoHAsync_v2(
+            dst.as_mut_ptr() as *mut _,
+            src,
+            std::mem::size_of::<T>() * dst.len(),
+            self.cu_stream,
+        ).result() }
+    }
+
     /// Copy a [`CudaSlice`]/[`CudaView`] to a existing [`CudaSlice`]/[`CudaViewMut`].
     pub fn memcpy_dtod<T, Src: DevicePtr<T>, Dst: DevicePtrMut<T>>(
         self: &Arc<Self>,
